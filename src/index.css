@@ -1,0 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-ink-50 text-ink-900 font-sans antialiased;
+  }
+  ::selection {
+    @apply bg-brand-500/20 text-brand-900;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl bg-white border border-ink-100 shadow-soft;
+  }
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-card hover:-translate-y-0.5;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn bg-brand-500 text-white px-4 py-2.5 hover:bg-brand-600 active:scale-[0.98] shadow-soft;
+  }
+  .btn-ghost {
+    @apply btn text-ink-600 px-4 py-2.5 hover:bg-ink-100;
+  }
+  .btn-outline {
+    @apply btn border border-ink-200 text-ink-700 px-4 py-2.5 hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50;
+  }
+  .input {
+    @apply w-full rounded-xl border border-ink-200 bg-white px-3.5 py-2.5 text-ink-900 placeholder:text-ink-400 outline-none transition-all duration-200 focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold;
+  }
+  .sidebar-link {
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-500 transition-all duration-200 hover:bg-ink-100 hover:text-ink-900;
+  }
+  .sidebar-link-active {
+    @apply bg-brand-50 text-brand-700 hover:bg-brand-50 hover:text-brand-700;
+  }
+  .stat-tile {
+    @apply card p-5 flex flex-col gap-2;
+  }
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/60;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-ink-200 rounded-full;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(27, 177, 173, 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(27, 177, 173, 0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .bg-mesh {
+    background-image:
+      radial-gradient(at 12% 18%, rgba(27, 177, 173, 0.12) 0px, transparent 50%),
+      radial-gradient(at 88% 8%, rgba(51, 123, 255, 0.10) 0px, transparent 45%),
+      radial-gradient(at 70% 92%, rgba(27, 177, 173, 0.08) 0px, transparent 45%);
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+}
