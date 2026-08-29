@@ -5,7 +5,7 @@ import {
 import { DashboardShell, PageHeader, type NavItem } from '@/components/DashboardShell';
 import { Card, StatTile, Badge, Avatar, ProgressBar, SectionTitle } from '@/components/ui';
 import { BarChart } from '@/components/charts';
-import { timetable, homework, students } from '@/data';
+import { useApp } from '@/context/AppContext';
 
 const items: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -29,19 +29,22 @@ export function TeacherDashboard() {
       {active === 'homework' && <Homework />}
       {active === 'timetable' && <Timetable />}
       {active === 'ai' && <AISchedule />}
-      {(active === 'notes' || active === 'students' || active === 'messages') && <Placeholder />}
+      {active === 'notes' && <Notes />}
+      {active === 'students' && <StudentRoster />}
+      {active === 'messages' && <ParentMessages />}
     </DashboardShell>
   );
 }
 
 function Overview() {
+  const { timetable, homework, user } = useApp();
   return (
     <>
-      <PageHeader title="Teacher Dashboard" subtitle="Anita Rao · Mathematics" action={<button className="btn-primary text-sm"><Plus className="w-4 h-4" /> Assign Homework</button>} />
+      <PageHeader title="Teacher Dashboard" subtitle={`${user?.name || 'Teacher'} · ${user?.title || 'Faculty'}`} action={<button onClick={() => {}} className="btn-primary text-sm"><Plus className="w-4 h-4" /> Assign Homework</button>} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatTile label="My Classes" value="3" sub="10-A, 10-B, 9-C" icon={<GraduationCap className="w-4 h-4" />} tone="brand" />
         <StatTile label="Today's Periods" value="4" sub="2 completed" icon={<Calendar className="w-4 h-4" />} tone="accent" />
-        <StatTile label="Homework" value="38" sub="6 pending review" icon={<BookOpen className="w-4 h-4" />} tone="warning" />
+        <StatTile label="Homework" value={homework.length} sub={`${homework.filter((h) => h.status === 'pending').length} pending review`} icon={<BookOpen className="w-4 h-4" />} tone="warning" />
         <StatTile label="Marks Entered" value="36" sub="2 pending" icon={<ClipboardList className="w-4 h-4" />} tone="success" />
       </div>
 
@@ -49,7 +52,7 @@ function Overview() {
         <Card className="p-5 lg:col-span-2">
           <SectionTitle title="Today's Timetable" subtitle="Monday · 26 Aug" />
           <div className="space-y-2">
-            {timetable[0].periods.map((p, i) => (
+            {(timetable[0]?.periods || []).map((p, i) => (
               <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-ink-50">
                 <div className={`w-1.5 h-10 rounded-full ${p.color}`} />
                 <div className="flex-1">
@@ -96,31 +99,35 @@ function Overview() {
 }
 
 function Attendance() {
-  const roster = ['Rahul Kumar', 'Ravi Sharma', 'Priya Nair', 'Karthik Reddy', 'Sneha Iyer', 'Arjun Das', 'Divya Menon', 'Vikram Rao'];
-  const [present, setPresent] = useState<Record<string, boolean>>(Object.fromEntries(roster.map((n) => [n, true])));
-  const count = Object.values(present).filter(Boolean).length;
+  const { students, saveAttendance } = useApp();
+  const roster = students.map((s) => s.name);
+  const [present, setPresent] = useState<Record<string, boolean>>({});
+  const [saved, setSaved] = useState(false);
+  const names = roster.length ? roster : ['Rahul Kumar'];
+  const marks = Object.keys(present).length ? present : Object.fromEntries(names.map((n) => [n, true]));
+  const count = Object.values(marks).filter(Boolean).length;
 
   return (
     <>
-      <PageHeader title="Mark Attendance" subtitle="10-A · Mathematics · Today" action={<button className="btn-primary text-sm"><CheckCircle2 className="w-4 h-4" /> Save Attendance</button>} />
+      <PageHeader title="Mark Attendance" subtitle="Saved" action={<button onClick={async () => { await saveAttendance(marks); setSaved(true); }} className="btn-primary text-sm"><CheckCircle2 className="w-4 h-4" /> {saved ? 'Saved' : 'Save Attendance'}</button>} />
       <div className="grid lg:grid-cols-3 gap-5">
         <Card className="p-5 lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-ink-500">{count}/{roster.length} present</span>
+            <span className="text-sm text-ink-500">{count}/{names.length} present</span>
             <div className="flex gap-2">
-              <button onClick={() => setPresent(Object.fromEntries(roster.map((n) => [n, true])))} className="btn-ghost text-xs px-3 py-1.5">Mark all present</button>
+              <button onClick={() => setPresent(Object.fromEntries(names.map((n) => [n, true])))} className="btn-ghost text-xs px-3 py-1.5">Mark all present</button>
             </div>
           </div>
           <div className="grid sm:grid-cols-2 gap-2">
-            {roster.map((n) => (
+            {names.map((n) => (
               <button
                 key={n}
-                onClick={() => setPresent((p) => ({ ...p, [n]: !p[n] }))}
-                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${present[n] ? 'border-success-200 bg-success-50' : 'border-danger-200 bg-danger-50'}`}
+                onClick={() => setPresent((p) => ({ ...marks, ...p, [n]: !marks[n] }))}
+                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${marks[n] ? 'border-success-200 bg-success-50' : 'border-danger-200 bg-danger-50'}`}
               >
-                <Avatar initials={n.split(' ').map((x) => x[0]).join('')} color={present[n] ? 'bg-success-500' : 'bg-danger-500'} size="sm" />
+                <Avatar initials={n.split(' ').map((x) => x[0]).join('')} color={marks[n] ? 'bg-success-500' : 'bg-danger-500'} size="sm" />
                 <span className="flex-1 text-left text-sm font-600 text-ink-900">{n}</span>
-                <span className={`chip ${present[n] ? 'bg-success-100 text-success-700' : 'bg-danger-100 text-danger-700'}`}>{present[n] ? 'Present' : 'Absent'}</span>
+                <span className={`chip ${marks[n] ? 'bg-success-100 text-success-700' : 'bg-danger-100 text-danger-700'}`}>{marks[n] ? 'Present' : 'Absent'}</span>
               </button>
             ))}
           </div>
@@ -131,18 +138,18 @@ function Attendance() {
             <div className="relative w-32 h-32">
               <svg className="w-full h-full -rotate-90">
                 <circle cx="64" cy="64" r="56" fill="none" stroke="#e9edf5" strokeWidth="10" />
-                <circle cx="64" cy="64" r="56" fill="none" stroke="#1bb1ad" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${(count / roster.length) * 2 * Math.PI * 56} ${2 * Math.PI * 56}`} className="transition-all duration-700" />
+                <circle cx="64" cy="64" r="56" fill="none" stroke="#1bb1ad" strokeWidth="10" strokeLinecap="round" strokeDasharray={`${(count / names.length) * 2 * Math.PI * 56} ${2 * Math.PI * 56}`} className="transition-all duration-700" />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-display text-2xl font-800 text-ink-900">{Math.round((count / roster.length) * 100)}%</span>
+                <span className="font-display text-2xl font-800 text-ink-900">{Math.round((count / names.length) * 100)}%</span>
                 <span className="text-xs text-ink-400">Present</span>
               </div>
             </div>
           </div>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-ink-500">Present</span><span className="font-600 text-success-600">{count}</span></div>
-            <div className="flex justify-between"><span className="text-ink-500">Absent</span><span className="font-600 text-danger-600">{roster.length - count}</span></div>
-            <div className="flex justify-between"><span className="text-ink-500">Total</span><span className="font-600 text-ink-900">{roster.length}</span></div>
+            <div className="flex justify-between"><span className="text-ink-500">Absent</span><span className="font-600 text-danger-600">{names.length - count}</span></div>
+            <div className="flex justify-between"><span className="text-ink-500">Total</span><span className="font-600 text-ink-900">{names.length}</span></div>
           </div>
         </Card>
       </div>
@@ -151,6 +158,7 @@ function Attendance() {
 }
 
 function Marks() {
+  const { students } = useApp();
   return (
     <>
       <PageHeader title="Enter Marks" subtitle="10-A · Mathematics · Mid Semester" action={<button className="btn-primary text-sm"><CheckCircle2 className="w-4 h-4" /> Save Marks</button>} />
@@ -192,9 +200,27 @@ function Marks() {
 }
 
 function Homework() {
+  const { homework, addHomework } = useApp();
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [subject, setSubject] = useState('Mathematics');
+  const [due, setDue] = useState('');
   return (
     <>
-      <PageHeader title="Homework" subtitle="Assigned & submissions" action={<button className="btn-primary text-sm"><Plus className="w-4 h-4" /> Create Homework</button>} />
+      <PageHeader title="Homework" subtitle="Assigned & submissions" action={<button onClick={() => setOpen(true)} className="btn-primary text-sm"><Plus className="w-4 h-4" /> Create Homework</button>} />
+      {open && (
+        <Card className="p-4 mb-4">
+          <div className="grid sm:grid-cols-3 gap-3">
+            <input className="input" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <input className="input" placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+            <input className="input" placeholder="Due date" value={due} onChange={(e) => setDue(e.target.value)} />
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button className="btn-primary text-sm" onClick={async () => { if (!title.trim()) return; await addHomework(subject, title, due || 'TBD'); setTitle(''); setOpen(false); }}>Save</button>
+            <button className="btn-ghost text-sm" onClick={() => setOpen(false)}>Cancel</button>
+          </div>
+        </Card>
+      )}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {homework.map((h) => (
           <Card key={h.id} className="p-5 card-hover">
@@ -216,6 +242,7 @@ function Homework() {
 }
 
 function Timetable() {
+  const { timetable } = useApp();
   return (
     <>
       <PageHeader title="Timetable" subtitle="Weekly schedule" />
@@ -279,11 +306,63 @@ function AISchedule() {
   );
 }
 
-function Placeholder() {
+function Notes() {
+  const { homework } = useApp();
   return (
-    <Card className="p-10 text-center">
-      <p className="font-600 text-ink-700">This module is ready for data.</p>
-      <p className="text-sm text-ink-400 mt-1">Content populates as you add notes, students, and messages.</p>
-    </Card>
+    <>
+      <PageHeader title="Notes" subtitle="Lesson notes tied to assignments" />
+      <div className="space-y-3">
+        {homework.map((h) => (
+          <Card key={h.id} className="p-4">
+            <div className="font-700 text-ink-900">{h.subject}</div>
+            <p className="text-sm text-ink-500 mt-1">{h.title} — due {h.due}</p>
+          </Card>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function StudentRoster() {
+  const { students } = useApp();
+  return (
+    <>
+      <PageHeader title="Students" subtitle="Class roster" />
+      <div className="grid sm:grid-cols-2 gap-4">
+        {students.map((s) => (
+          <Card key={s.id} className="p-4 flex items-center gap-3">
+            <Avatar initials={s.initials} color={s.avatarColor} />
+            <div>
+              <div className="font-700 text-ink-900">{s.name}</div>
+              <div className="text-xs text-ink-400">{s.className} · {s.attendance}% attendance</div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function ParentMessages() {
+  const { messages, sendMessage } = useApp();
+  const [input, setInput] = useState('');
+  return (
+    <>
+      <PageHeader title="Parent Messages" subtitle="Conversation with parents" />
+      <Card className="p-4">
+        <div className="space-y-2 mb-4 max-h-80 overflow-y-auto scrollbar-thin">
+          {messages.map((m, i) => (
+            <div key={i} className={`p-3 rounded-xl text-sm ${m.from === 'teacher' ? 'bg-brand-50 ml-8' : 'bg-ink-50 mr-8'}`}>
+              <div className="text-[10px] text-ink-400 mb-1">{m.from} · {m.time}</div>
+              {m.text}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input className="input flex-1" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Reply to parent..." />
+          <button className="btn-primary" onClick={async () => { if (!input.trim()) return; await sendMessage(input); setInput(''); }}>Send</button>
+        </div>
+      </Card>
+    </>
   );
 }

@@ -5,8 +5,9 @@ import {
 import { DashboardShell, PageHeader, type NavItem } from '@/components/DashboardShell';
 import { Card, StatTile, Badge, Avatar, ProgressBar, SectionTitle, RiskBadge } from '@/components/ui';
 import { LineChart, SubjectBars, RadialGauge, DonutChart, Legend } from '@/components/charts';
-import { students, initialChat, suggestedQuestions, timetable, homework } from '@/data';
-import type { ChatMessage } from '@/types';
+import { suggestedQuestions } from '@/data';
+import { useApp } from '@/context/AppContext';
+import type { ChatMessage, Student } from '@/types';
 import { useNav } from '@/nav';
 
 const items: NavItem[] = [
@@ -24,8 +25,17 @@ const items: NavItem[] = [
 
 export function ParentDashboard() {
   const { activeStudentId, setActiveStudentId } = useNav();
+  const { students } = useApp();
   const [active, setActive] = useState('dashboard');
   const student = students.find((s) => s.id === activeStudentId) || students[0];
+
+  if (!student) {
+    return (
+      <DashboardShell role="parent" items={items} active={active} onNavigate={setActive}>
+        <Card className="p-10 text-center"><p className="text-ink-500">Loading student records…</p></Card>
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell role="parent" items={items} active={active} onNavigate={setActive}>
@@ -43,7 +53,8 @@ export function ParentDashboard() {
   );
 }
 
-function StudentSwitcher({ student, onSwitch }: { student: typeof students[0]; onSwitch: (id: string) => void }) {
+function StudentSwitcher({ student, onSwitch }: { student: NonNullable<ReturnType<typeof useApp>['students'][0]>; onSwitch: (id: string) => void }) {
+  const { students } = useApp();
   return (
     <div className="flex flex-wrap gap-2 mb-5">
       {students.map((s) => (
@@ -63,7 +74,7 @@ function StudentSwitcher({ student, onSwitch }: { student: typeof students[0]; o
   );
 }
 
-function Student360({ student, onSwitch }: { student: typeof students[0]; onSwitch: (id: string) => void }) {
+function Student360({ student, onSwitch }: { student: Student; onSwitch: (id: string) => void }) {
   return (
     <>
       <StudentSwitcher student={student} onSwitch={onSwitch} />
@@ -176,7 +187,7 @@ function Student360({ student, onSwitch }: { student: typeof students[0]; onSwit
   );
 }
 
-function Attendance({ student }: { student: typeof students[0] }) {
+function Attendance({ student }: { student: Student }) {
   return (
     <>
       <PageHeader title="Attendance" subtitle={`${student.name} · ${student.className}`} />
@@ -200,7 +211,7 @@ function Attendance({ student }: { student: typeof students[0] }) {
   );
 }
 
-function Marks({ student }: { student: typeof students[0] }) {
+function Marks({ student }: { student: Student }) {
   return (
     <>
       <PageHeader title="Academic Performance" subtitle={`${student.name} · Marks & grades`} />
@@ -231,6 +242,7 @@ function Marks({ student }: { student: typeof students[0] }) {
 }
 
 function Homework() {
+  const { homework } = useApp();
   return (
     <>
       <PageHeader title="Homework" subtitle="Assignments & submissions" />
@@ -252,6 +264,7 @@ function Homework() {
 }
 
 function Timetable() {
+  const { timetable } = useApp();
   return (
     <>
       <PageHeader title="Timetable" subtitle="Weekly class schedule" />
@@ -278,7 +291,7 @@ function Timetable() {
   );
 }
 
-function Fees({ student }: { student: typeof students[0] }) {
+function Fees({ student }: { student: Student }) {
   const remaining = student.fee.total - student.fee.paid;
   const pct = Math.round((student.fee.paid / student.fee.total) * 100);
   return (
@@ -323,7 +336,7 @@ function Fees({ student }: { student: typeof students[0] }) {
   );
 }
 
-function Achievements({ student }: { student: typeof students[0] }) {
+function Achievements({ student }: { student: Student }) {
   return (
     <>
       <PageHeader title="Achievements" subtitle={`${student.name} · Awards & activities`} />
@@ -351,7 +364,7 @@ function Achievements({ student }: { student: typeof students[0] }) {
   );
 }
 
-function Career({ student }: { student: typeof students[0] }) {
+function Career({ student }: { student: Student }) {
   return (
     <>
       <PageHeader title="Career & AI Recommendations" subtitle={student.name} action={<Badge tone="brand" dot>AI</Badge>} />
@@ -410,8 +423,10 @@ function Career({ student }: { student: typeof students[0] }) {
   );
 }
 
-function Chatbot({ student }: { student: typeof students[0] }) {
-  const [messages, setMessages] = useState<ChatMessage[]>(initialChat);
+function Chatbot({ student }: { student: NonNullable<ReturnType<typeof useApp>['students'][0]> }) {
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { id: 'm1', from: 'ai', text: `Hi! I'm EduVision AI. Ask me about ${student.name}'s performance, weak subjects, or what to study today.`, time: 'Now' },
+  ]);
   const [input, setInput] = useState('');
 
   const respond = (q: string): string => {
@@ -478,15 +493,16 @@ function Chatbot({ student }: { student: typeof students[0] }) {
 }
 
 function TeacherChat() {
-  const [messages, setMessages] = useState<{ from: 'teacher' | 'parent'; text: string; time: string }[]>([
-    { from: 'teacher', text: "Hello! Rahul is having difficulty understanding Mathematics.", time: '10:30 AM' },
-    { from: 'parent', text: "I see. What can we do at home?", time: '10:32 AM' },
-    { from: 'teacher', text: "I recommend revising Algebra. I'll also conduct a doubt session tomorrow at 3 PM.", time: '10:33 AM' },
-  ]);
+  const { messages, sendMessage } = useApp();
   const [input, setInput] = useState('');
+  const send = async () => {
+    if (!input.trim()) return;
+    await sendMessage(input);
+    setInput('');
+  };
   return (
     <>
-      <PageHeader title="Parent-Teacher Chat" subtitle="Anita Rao · Mathematics" />
+      <PageHeader title="Parent-Teacher Chat" subtitle="Messages with your teacher" />
       <Card className="p-0 overflow-hidden flex flex-col">
         <div className="p-4 border-b border-ink-100 flex items-center gap-3">
           <Avatar initials="AR" color="bg-brand-500" />
@@ -503,8 +519,8 @@ function TeacherChat() {
           ))}
         </div>
         <div className="p-3 border-t border-ink-100 flex gap-2">
-          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (setMessages((m) => [...m, { from: 'parent', text: input, time: 'Now' }]), setInput(''))} placeholder="Type a message..." className="input flex-1" />
-          <button onClick={() => { setMessages((m) => [...m, { from: 'parent', text: input, time: 'Now' }]); setInput(''); }} className="btn-primary px-3"><Send className="w-4 h-4" /></button>
+          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void send()} placeholder="Type a message..." className="input flex-1" />
+          <button onClick={() => void send()} className="btn-primary px-3"><Send className="w-4 h-4" /></button>
         </div>
       </Card>
     </>

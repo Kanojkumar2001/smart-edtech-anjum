@@ -3,7 +3,7 @@ import type { Role } from './types';
 
 export type Route =
   | { name: 'landing' }
-  | { name: 'login'; role: Role }
+  | { name: 'login'; role: Role; mode?: 'signin' }
   | { name: 'dashboard'; role: Role };
 
 interface NavCtx {
@@ -17,8 +17,20 @@ interface NavCtx {
 
 const Ctx = createContext<NavCtx | null>(null);
 
+function initialRoute(): Route {
+  try {
+    const raw = localStorage.getItem('eduvision_user');
+    if (!raw) return { name: 'landing' };
+    const user = JSON.parse(raw) as { role?: Role };
+    if (user?.role) return { name: 'dashboard', role: user.role };
+  } catch {
+    /* ignore */
+  }
+  return { name: 'landing' };
+}
+
 export function NavProvider({ children }: { children: ReactNode }) {
-  const [route, setRoute] = useState<Route>({ name: 'landing' });
+  const [route, setRoute] = useState<Route>(initialRoute);
   const [activeSchoolId, setActiveSchoolId] = useState('s1');
   const [activeStudentId, setActiveStudentId] = useState('st1');
   const go = (r: Route) => {

@@ -1,4 +1,5 @@
 import { NavProvider, useNav } from '@/nav';
+import { AppProvider } from '@/context/AppContext';
 import { LandingPage } from '@/pages/LandingPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { AdminDashboard } from '@/pages/AdminDashboard';
@@ -25,8 +26,10 @@ function Router() {
 
 export default function App() {
   return (
-    <NavProvider>
-      <Router />
-    </NavProvider>
+    <AppProvider>
+      <NavProvider>
+        <Router />
+      </NavProvider>
+    </AppProvider>
   );
 }

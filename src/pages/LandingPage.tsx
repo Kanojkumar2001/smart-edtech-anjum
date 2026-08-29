@@ -3,10 +3,12 @@ import { Star, Users, GraduationCap, MapPin, ArrowRight, Plus, Search, ShieldChe
 import { Logo } from '@/components/Logo';
 import { Badge } from '@/components/ui';
 import { useNav } from '@/nav';
-import { schools } from '@/data';
+import { useApp } from '@/context/AppContext';
+import { api, ApiError } from '@/lib/api';
 
 export function LandingPage() {
   const { go, setActiveSchoolId } = useNav();
+  const { schools, refreshPublic } = useApp();
   const [query, setQuery] = useState('');
   const [showRegister, setShowRegister] = useState(false);
 
@@ -25,10 +27,10 @@ export function LandingPage() {
             <a className="px-3 py-2 text-ink-600 hover:text-ink-900 font-500" href="#features">Features</a>
             <a className="px-3 py-2 text-ink-600 hover:text-ink-900 font-500" href="#ai">AI Engine</a>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => go({ name: 'login', role: 'admin' })} className="btn-ghost text-sm hidden sm:inline-flex">Admin</button>
-            <button onClick={() => go({ name: 'login', role: 'parent' })} className="btn-primary text-sm">Sign in</button>
-          </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => go({ name: 'login', role: 'admin' })} className="btn-ghost text-sm hidden sm:inline-flex">Admin</button>
+              <button onClick={() => go({ name: 'login', role: 'parent' })} className="btn-primary text-sm">Sign in</button>
+            </div>
         </div>
       </header>
 
@@ -89,8 +91,8 @@ export function LandingPage() {
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-success-50 text-success-600 flex items-center justify-center"><CheckCircle2 className="w-4 h-4" /></div>
                 <div>
-                  <div className="text-xs font-600 text-ink-900">2,450 Students</div>
-                  <div className="text-[10px] text-ink-400">Across 5 schools</div>
+                  <div className="text-xs font-600 text-ink-900">{schools.reduce((n, s) => n + s.students, 0).toLocaleString() || '—'} Students</div>
+                  <div className="text-[10px] text-ink-400">Across {schools.length || 0} schools</div>
                 </div>
               </div>
             </div>
@@ -288,12 +290,40 @@ export function LandingPage() {
         <div className="border-t border-ink-800 py-5 text-center text-xs text-ink-500">© 2026 EduVision. Smart Intelligence Learning Platform.</div>
       </footer>
 
-      {showRegister && <RegisterModal onClose={() => setShowRegister(false)} />}
+      {showRegister && <RegisterModal onClose={() => setShowRegister(false)} onCreated={refreshPublic} />}
     </div>
   );
 }
 
-function RegisterModal({ onClose }: { onClose: () => void }) {
+function RegisterModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) {
+  const [form, setForm] = useState({
+    name: '', code: '', address: '', city: 'Ongole', district: 'Prakasam', state: 'Andhra Pradesh',
+    principalName: '', email: '', phone: '', board: 'CBSE', classes: 'I–XII', students: '', teachers: '',
+  });
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const submit = async () => {
+    setError('');
+    setBusy(true);
+    try {
+      await api.registerSchool({
+        ...form,
+        students: Number(form.students) || 0,
+        teachers: Number(form.teachers) || 0,
+        code: form.code.replace(/\D/g, ''),
+      });
+      await onCreated();
+      setDone(true);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not submit the school. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in-fast">
       <div className="absolute inset-0 bg-ink-950/40 backdrop-blur-sm" onClick={onClose} />
@@ -305,24 +335,34 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
           </div>
           <button onClick={onClose} className="btn-ghost px-2 py-2 text-ink-400 hover:text-ink-900">✕</button>
         </div>
-        <div className="grid sm:grid-cols-2 gap-3">
-          {['School Name', 'School Code', 'Address', 'City', 'District', 'State', 'Principal Name', 'Official Email', 'Phone Number', 'Board', 'Classes', 'Number of Students', 'Number of Teachers'].map((f) => (
-            <div key={f} className={f === 'Address' ? 'sm:col-span-2' : ''}>
-              <label className="text-xs font-600 text-ink-600 mb-1 block">{f}</label>
-              <input className="input" placeholder={f} />
-            </div>
-          ))}
-        </div>
-        <div className="mt-4">
-          <label className="text-xs font-600 text-ink-600 mb-1 block">School Logo</label>
-          <div className="rounded-xl border-2 border-dashed border-ink-200 p-6 text-center text-sm text-ink-400 hover:border-brand-400 hover:text-brand-600 cursor-pointer transition-colors">
-            Click to upload logo
+        {done ? (
+          <div className="text-center py-8">
+            <CheckCircle2 className="w-12 h-12 text-success-500 mx-auto mb-3" />
+            <p className="font-700 text-ink-900">Submitted for verification</p>
+            <p className="text-sm text-ink-500 mt-1">An admin will approve this school from the dashboard.</p>
+            <button onClick={onClose} className="btn-primary mt-6">Done</button>
           </div>
-        </div>
-        <div className="flex items-center gap-2 mt-5">
-          <button onClick={onClose} className="btn-primary flex-1">Submit for Verification</button>
-          <button onClick={onClose} className="btn-outline">Cancel</button>
-        </div>
+        ) : (
+          <>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {([
+                ['name', 'School Name'], ['code', '8-digit School Code'], ['address', 'Address'], ['city', 'City'],
+                ['district', 'District'], ['state', 'State'], ['principalName', 'Principal Name'], ['email', 'Official Email'],
+                ['phone', 'Phone Number'], ['board', 'Board'], ['classes', 'Classes'], ['students', 'Number of Students'], ['teachers', 'Number of Teachers'],
+              ] as const).map(([k, label]) => (
+                <div key={k} className={k === 'address' ? 'sm:col-span-2' : ''}>
+                  <label className="text-xs font-600 text-ink-600 mb-1 block">{label}</label>
+                  <input className="input" placeholder={label} value={form[k]} onChange={(e) => set(k, k === 'code' ? e.target.value.replace(/\D/g, '').slice(0, 8) : e.target.value)} />
+                </div>
+              ))}
+            </div>
+            {error && <p className="text-sm text-danger-600 mt-3">{error}</p>}
+            <div className="flex items-center gap-2 mt-5">
+              <button disabled={busy} onClick={submit} className="btn-primary flex-1">{busy ? 'Saving…' : 'Submit for Verification'}</button>
+              <button onClick={onClose} className="btn-outline">Cancel</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

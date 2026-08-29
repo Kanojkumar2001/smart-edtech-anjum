@@ -1,10 +1,10 @@
 import { type ReactNode, useState } from 'react';
-import { Bell, Search, LogOut, Menu, X, ChevronDown, Settings } from 'lucide-react';
+import { Bell, Search, LogOut, Menu, X, ChevronDown } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { Avatar } from '@/components/ui';
 import { useNav } from '@/nav';
+import { useApp } from '@/context/AppContext';
 import type { Role } from '@/types';
-import { schools, notifications } from '@/data';
 
 export interface NavItem { id: string; label: string; icon: typeof Bell; badge?: number }
 
@@ -25,10 +25,13 @@ export function DashboardShell({
   children: ReactNode;
 }) {
   const { go } = useNav();
+  const { user, logout, schools, notifications, markRead, dbStatus } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const profile = roleProfile[role];
-  const school = schools[0];
+  const profile = user
+    ? { name: user.name, role: user.title || roleProfile[role].role, initials: user.initials || roleProfile[role].initials, color: user.color || roleProfile[role].color }
+    : roleProfile[role];
+  const school = schools.find((s) => s.id === user?.schoolId) || schools[0];
   const unread = notifications.filter((n) => !n.read).length;
 
   return (
@@ -55,7 +58,7 @@ export function DashboardShell({
           </nav>
         </div>
         <div className="p-3 border-t border-ink-100">
-          <button onClick={() => go({ name: 'landing' })} className="sidebar-link w-full text-danger-600 hover:bg-danger-50">
+          <button onClick={() => { logout(); go({ name: 'landing' }); }} className="sidebar-link w-full text-danger-600 hover:bg-danger-50">
             <LogOut className="w-4 h-4" /> Sign out
           </button>
         </div>
@@ -75,12 +78,14 @@ export function DashboardShell({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {school && (
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-ink-50 text-sm">
-              <span className="w-2 h-2 rounded-full bg-success-500" />
+              <span className={`w-2 h-2 rounded-full ${dbStatus === 'connected' ? 'bg-success-500' : 'bg-danger-500'}`} />
               <span className="text-ink-600 font-500">{school.name}</span>
               <span className="text-ink-300">·</span>
               <span className="font-mono text-ink-400 text-xs">{school.code}</span>
             </div>
+            )}
             <div className="relative">
               <button onClick={() => setNotifOpen((v) => !v)} className="btn-ghost p-2.5 relative">
                 <Bell className="w-5 h-5" />
@@ -94,7 +99,7 @@ export function DashboardShell({
                   </div>
                   <div className="max-h-80 overflow-y-auto scrollbar-thin">
                     {notifications.map((n) => (
-                      <div key={n.id} className={`p-3 rounded-xl hover:bg-ink-50 cursor-pointer ${!n.read ? 'bg-brand-50/50' : ''}`}>
+                      <button key={n.id} type="button" onClick={() => { if (!n.read) void markRead(n.id); }} className={`w-full text-left p-3 rounded-xl hover:bg-ink-50 cursor-pointer ${!n.read ? 'bg-brand-50/50' : ''}`}>
                         <div className="flex items-start gap-2">
                           <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${!n.read ? 'bg-brand-500' : 'bg-ink-200'}`} />
                           <div className="min-w-0">
@@ -103,7 +108,7 @@ export function DashboardShell({
                             <p className="text-[10px] text-ink-400 mt-1">{n.time}</p>
                           </div>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -134,16 +139,6 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
         {subtitle && <p className="text-ink-500 mt-1">{subtitle}</p>}
       </div>
       {action && <div className="flex items-center gap-2">{action}</div>}
-    </div>
-  );
-}
-
-export function SettingsStub() {
-  return (
-    <div className="card p-10 text-center">
-      <Settings className="w-10 h-10 text-ink-300 mx-auto mb-3" />
-      <p className="font-600 text-ink-700">Settings</p>
-      <p className="text-sm text-ink-400 mt-1">Preferences and configuration will appear here.</p>
     </div>
   );
 }
